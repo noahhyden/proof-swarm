@@ -1,11 +1,11 @@
 # proof-swarm
 
-An experiment: can several small, locally-run language models — working together
-as different **roles** rather than one big model — be pushed to *derive* simple
+An experiment: can several small, locally-run language models - working together
+as different **roles** rather than one big model - be pushed to *derive* simple
 mathematical proofs step by step, and check each other's reasoning?
 
 This repo is a learning sandbox. It is deliberately small and readable. There is
-**no framework magic** — every prompt and every message sent to a model is plain
+**no framework magic** - every prompt and every message sent to a model is plain
 Python you can read and change.
 
 ## The idea
@@ -30,7 +30,7 @@ We explore three multi-agent patterns:
 ## Hardware note
 
 Built and tested on a CPU-only machine (16 cores, 27 GB RAM, no CUDA). Small
-models (1–3B, 4-bit) run fine here. If you have an NVIDIA/ROCm GPU, Ollama will
+models (1-3B, 4-bit) run fine here. If you have an NVIDIA/ROCm GPU, Ollama will
 use it automatically.
 
 ## Setup
@@ -44,9 +44,8 @@ ollama pull qwen2.5:3b
 ollama pull llama3.2:3b
 ollama pull gemma2:2b
 
-# 3. Python deps (via uv — https://github.com/astral-sh/uv)
-uv venv
-uv pip install -r requirements.txt
+# 3. Python deps (via uv - https://github.com/astral-sh/uv)
+uv sync
 
 # 4. Run a proof attempt
 uv run python run.py --problem even_plus_even --mode verify
@@ -72,11 +71,11 @@ uv run python run.py --problem even_plus_even --mode vote --samples 5
 ```
 
 Add your own problems in `problems/problems.json`. The perturbed ones (e.g.
-`even_plus_odd`) are where memorization stops helping — that's the real test.
+`even_plus_odd`) are where memorization stops helping - that's the real test.
 
 ## Where this can go
 
 The orchestrator talks to models through one small interface (`src/llm.py`).
 Swap Ollama for a different backend, or swap the LLM roles for a symbolic prover
-(e.g. Lean, Z3) as a ground-truth verifier — that's the natural next step for
+(e.g. Lean, Z3) as a ground-truth verifier - that's the natural next step for
 "reasoning you can actually trust."

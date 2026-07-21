@@ -7,10 +7,10 @@ pattern is a short, explicit choreography of who says what to whom.
 
 from __future__ import annotations
 
-import re
 from collections import Counter
 
 from .llm import Agent
+from .scoring import extract_answer
 
 # --- Role prompts --------------------------------------------------------------
 
@@ -69,7 +69,7 @@ def verify(problem: dict, prover: Agent, critics: list[Agent], rounds: int = 2) 
                 all_correct = False
 
         if all_correct:
-            print("All critics satisfied — stopping early.")
+            print("All critics satisfied - stopping early.")
             break
 
         proof = prover.ask(
@@ -104,20 +104,19 @@ def debate(problem: dict, prover_a: Agent, prover_b: Agent, judge: Agent) -> str
     return "Judge found neither proof adequate.\n\n" + ruling
 
 
-def _extract_answer(text: str) -> str:
-    match = re.search(r"ANSWER:\s*(.+)", text, re.IGNORECASE)
-    return match.group(1).strip().lower() if match else text.strip().lower()[:80]
-
-
 def vote(problem: dict, prover: Agent, samples: int = 5) -> str:
     """Self-consistency: sample many times, majority-vote the final answer."""
     prover.temperature = max(prover.temperature, 0.8)  # need diversity
+    base_seed = prover.seed
     answers = []
     proofs = []
     for i in range(samples):
+        # Derive each sample's seed from the base (base_seed + i), never from
+        # the mutated field, so the whole vote is reproducible from one seed.
+        prover.seed = base_seed + i
         proof = single(problem, prover)
         proofs.append(proof)
-        ans = _extract_answer(proof)
+        ans = extract_answer(proof).lower()
         answers.append(ans)
         print(f"sample {i + 1} answer: {ans}")
 

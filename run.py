@@ -5,11 +5,11 @@ Run several small local models as different roles and make them derive (and
 check) simple proofs.
 
 Examples:
-    python run.py --list
-    python run.py --problem even_plus_even --mode single
-    python run.py --problem even_plus_odd  --mode verify --rounds 2
-    python run.py --problem sqrt2_irrational --mode debate
-    python run.py --problem even_plus_even --mode vote --samples 5
+    uv run python run.py --list
+    uv run python run.py --problem even_plus_even --mode single
+    uv run python run.py --problem even_plus_odd  --mode verify --rounds 2
+    uv run python run.py --problem sqrt2_irrational --mode debate
+    uv run python run.py --problem even_plus_even --mode vote --samples 5
 """
 
 from __future__ import annotations
@@ -17,59 +17,58 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from src import config
 from src import orchestrator as orch
 from src.llm import Agent, available_models
+from src.scoring import score
 
 ROOT = Path(__file__).parent
 PROBLEMS_PATH = ROOT / "problems" / "problems.json"
 RUNS_DIR = ROOT / "runs"
-
-# Which pulled model each role uses. Change these to whatever you `ollama pull`.
-# Using different models per role makes "debate" and "verify" more interesting
-# than cloning one model, but all-same also works fine.
-PROVER_MODEL = "qwen2.5:3b"
-CRITIC_MODEL = "llama3.2:3b"
-JUDGE_MODEL = "gemma2:2b"
 
 
 def load_problems() -> dict:
     return json.loads(PROBLEMS_PATH.read_text())
 
 
-def save_run(problem_key: str, args, result: str) -> Path:
-    """Write a run to runs/ so experiments are comparable later."""
+def save_run(problem_key: str, problem: dict, args, result: str, elapsed: float):
+    """Write a run to runs/; return (path, scored_dict_or_None)."""
     RUNS_DIR.mkdir(exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    scored = score(result, problem["answer"]) if "answer" in problem else None
     path = RUNS_DIR / f"{stamp}_{problem_key}_{args.mode}.json"
     path.write_text(
         json.dumps(
             {
+                "schema_version": config.SCHEMA_VERSION,
                 "problem": problem_key,
+                "statement": problem["statement"],
                 "mode": args.mode,
                 "rounds": args.rounds,
                 "samples": args.samples,
-                "models": {
-                    "prover": PROVER_MODEL,
-                    "critic": CRITIC_MODEL,
-                    "judge": JUDGE_MODEL,
-                },
+                "seed": config.SEED,
+                "models": config.MODELS,
                 "timestamp_utc": stamp,
+                "elapsed_seconds": round(elapsed, 1),
+                "scored": scored,
                 "result": result,
             },
             indent=2,
         )
     )
-    return path
+    return path, scored
 
 
 def build_agents():
-    prover = Agent("Prover", PROVER_MODEL, orch.PROVER_SYSTEM, temperature=0.7)
-    critic = Agent("Critic", CRITIC_MODEL, orch.CRITIC_SYSTEM, temperature=0.3)
-    prover_b = Agent("Prover-B", CRITIC_MODEL, orch.PROVER_SYSTEM, temperature=0.9)
-    judge = Agent("Judge", JUDGE_MODEL, orch.JUDGE_SYSTEM, temperature=0.2)
+    m, t = config.MODELS, config.TEMPERATURES
+    prover = Agent("Prover", m["prover"], orch.PROVER_SYSTEM, temperature=t["prover"])
+    critic = Agent("Critic", m["critic"], orch.CRITIC_SYSTEM, temperature=t["critic"])
+    prover_b = Agent("Prover-B", m["critic"], orch.PROVER_SYSTEM, temperature=t["prover_b"])
+    judge = Agent("Judge", m["judge"], orch.JUDGE_SYSTEM, temperature=t["judge"])
     return prover, critic, prover_b, judge
 
 
@@ -81,7 +80,7 @@ def check_models_present() -> None:
             "  Install: curl -fsSL https://ollama.com/install.sh | sh\n"
             "  Then:    ollama serve  (usually starts automatically)"
         )
-    needed = {PROVER_MODEL, CRITIC_MODEL, JUDGE_MODEL}
+    needed = set(config.MODELS.values())
     missing = [m for m in needed if m not in have]
     if missing:
         pulls = "\n".join(f"  ollama pull {m}" for m in missing)
@@ -119,6 +118,7 @@ def main() -> None:
     print(f"=== {args.problem} | mode={args.mode} ===")
     print(f"Statement: {problem['statement']}\n")
 
+    start = time.monotonic()
     if args.mode == "single":
         result = orch.single(problem, prover)
     elif args.mode == "verify":
@@ -127,12 +127,16 @@ def main() -> None:
         result = orch.debate(problem, prover, prover_b, judge)
     else:  # vote
         result = orch.vote(problem, prover, samples=args.samples)
+    elapsed = time.monotonic() - start
 
     print("\n===================== FINAL =====================\n")
     print(result)
 
-    saved = save_run(args.problem, args, result)
-    print(f"\n[saved run to {saved.relative_to(ROOT)}]")
+    saved, scored = save_run(args.problem, problem, args, result, elapsed)
+    if scored is not None:
+        mark = "CORRECT" if scored["correct"] else "INCORRECT"
+        print(f"\n[score: {mark}  expected '{scored['expected']}', got '{scored['got']}']")
+    print(f"[saved run to {saved.relative_to(ROOT)}  ({elapsed:.0f}s)]")
 
 
 if __name__ == "__main__":
