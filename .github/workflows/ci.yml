@@ -16,5 +16,7 @@ jobs:
         run: uv python install 3.12
       - name: Sync dependencies
         run: uv sync --dev
-      - name: Run offline tests
-        run: uv run pytest -q
+      - name: Run offline tests with 100% coverage gate
+        run: uv run pytest --cov
+        # The Lean formal oracle is verified manually via `make oracle-verify`
+        # (CI has no Lean toolchain / Mathlib cache).

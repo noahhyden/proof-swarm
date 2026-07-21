@@ -137,10 +137,8 @@ def vote(problem: dict, prover: Agent, samples: int = 5) -> str:
 
     winner, count = Counter(answers).most_common(1)[0]
     print(f"\nMajority answer ({count}/{samples}): {winner}")
-    for proof, ans in zip(proofs, answers):
-        if ans == winner:
-            return proof
-    return proofs[0]
+    # The winner came from `answers`, so index() always finds it (no dead path).
+    return proofs[answers.index(winner)]
 
 
 def planted(problem: dict, critic: Agent, samples: int = 5) -> dict:

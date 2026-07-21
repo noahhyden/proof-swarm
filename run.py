@@ -23,10 +23,10 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from src import config
-from src import orchestrator as orch
-from src.llm import Agent, available_models
-from src.scoring import score
+from proofswarm import config
+from proofswarm import orchestrator as orch
+from proofswarm.llm import Agent, available_models
+from proofswarm.scoring import score
 
 ROOT = Path(__file__).parent
 PROBLEMS_PATH = ROOT / "problems" / "problems.json"

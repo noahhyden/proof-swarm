@@ -10,8 +10,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.orchestrator import _caught_bug
-from src.scoring import extract_answer, score
+from proofswarm.orchestrator import _caught_bug
+from proofswarm.scoring import extract_answer, score
 
 
 def test_extract_answer_reads_answer_line():
@@ -49,8 +49,12 @@ def test_caught_bug_detects_verdict():
 def test_planted_problems_are_well_formed():
     # Any problem that offers a planted bug must carry both a flawed proof and
     # a description of the bug, or planted mode has nothing to score.
-    problems = json.loads((Path(__file__).resolve().parent.parent
-                           / "problems" / "problems.json").read_text())
+    problems_path = Path(__file__).resolve().parent.parent / "problems" / "problems.json"
+    if not problems_path.exists():
+        import pytest
+
+        pytest.skip("problems.json not present (e.g. mutmut sandbox)")
+    problems = json.loads(problems_path.read_text())
     planted = {k: p for k, p in problems.items() if "flawed_proof" in p}
     assert planted, "expected at least one planted-bug problem"
     for key, p in planted.items():

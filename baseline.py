@@ -17,9 +17,9 @@ import argparse
 import time
 from types import SimpleNamespace
 
-from src import config
-from src import orchestrator as orch
-from src.llm import Agent
+from proofswarm import config
+from proofswarm import orchestrator as orch
+from proofswarm.llm import Agent
 
 from run import build_scored, check_models_present, load_problems, save_run
 

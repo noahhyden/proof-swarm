@@ -73,9 +73,46 @@ uv run python run.py --problem even_plus_even --mode vote --samples 5
 Add your own problems in `problems/problems.json`. The perturbed ones (e.g.
 `even_plus_odd`) are where memorization stops helping - that's the real test.
 
+## Formal oracle (Lean 4) - the golden tier
+
+The token scorer (`src/scoring.py`) is cheap but brittle. The real ground truth
+is a proof-assistant kernel: if a proof typechecks in **Lean 4**, it is correct,
+deterministically. `src/lean_oracle.py` splices a candidate Lean proof into a
+formalized statement (`formal/ProofSwarm/`) and asks the kernel. Pinned to Lean
+`v4.32.0` + Mathlib (rev in `formal/lake-manifest.json`) for reproducibility.
+
+Setup (one-time; Mathlib's cache is multi-GB):
+
+```bash
+curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
+export PATH="$HOME/.elan/bin:$PATH"
+cd formal && lake exe cache get && lake build ProofSwarm   # downloads Mathlib oleans
+```
+
+Then verify the oracle end to end (references accepted, broken/`sorry` rejected):
+
+```bash
+make oracle-verify
+```
+
+Its decision logic is fully unit-tested offline (a fake kernel runner is
+injected), so CI stays fast and green without Lean; the live kernel check is the
+manual `make oracle-verify` gate.
+
+## Development
+
+```bash
+make test      # fast offline tests
+make cov       # tests + 100% coverage gate (enforced in CI)
+make mutation  # mutation-test the pure logic
+```
+
+See `CLAUDE.md` for the binding dev discipline and conventions.
+
 ## Where this can go
 
-The orchestrator talks to models through one small interface (`src/llm.py`).
-Swap Ollama for a different backend, or swap the LLM roles for a symbolic prover
-(e.g. Lean, Z3) as a ground-truth verifier - that's the natural next step for
-"reasoning you can actually trust."
+The orchestrator talks to models through one small interface (`src/llm.py`), so
+Ollama is swappable. The formal oracle covers the parity problems today; next is
+extending it (sqrt2 via Mathlib's `irrational_sqrt_two`, induction for
+`sum_first_n`) and asking models to emit Lean directly - the path to "reasoning
+you can actually trust."

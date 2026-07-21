@@ -1,7 +1,11 @@
 # Spec: Lean 4 formal oracle (golden, bit-exact)
 
-Status: DRAFT for review. This is stage 1 (spec) of the dev discipline; no code
-until this is agreed and tests are written first.
+Status: IMPLEMENTED (phase 1). Parity problems formalized and proven; oracle
+built tests-first with 100% coverage; live + mutation verified via
+`make oracle-verify`. Decisions below resolved: **Mathlib from the start**
+(pinned Lean v4.32.0 + Mathlib rev in `formal/lake-manifest.json`).
+Remaining: sqrt2 / sum_first_n formalization, triangle_angle_sum (may drop),
+and wiring a `--mode lean` into `run.py`.
 
 ## Motivation
 

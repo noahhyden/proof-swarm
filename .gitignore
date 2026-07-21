@@ -3,3 +3,11 @@ __pycache__/
 *.pyc
 runs/
 .DS_Store
+
+# Lean build artifacts (huge; Mathlib oleans). lake-manifest.json IS committed
+# (it pins the exact Mathlib rev for reproducibility).
+formal/.lake/
+.mutmut-cache
+mutants/
+.coverage
+htmlcov/

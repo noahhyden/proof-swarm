@@ -16,8 +16,13 @@ the next unit of work until the current one has been through all of it.
    is not verification; assert on behavior.
 4. **mutation red-teaming** - a test suite that cannot detect an injected bug is
    not protecting anything. Run mutation testing on the pure logic (`make
-   mutation`) and kill surviving mutants by strengthening tests. The in-product
-   `planted` mode is the same idea aimed at the models.
+   mutation`). Policy: every mutant in **logic or a data/message contract** must
+   be killed by strengthening tests (e.g. the `vote` seed-derivation mutant, the
+   oracle's error/sorry output checks). Mutants that only alter **model-facing
+   prompt wording, log text, or whitespace** are accepted as equivalent - offline
+   tests cannot assert them without brittle exact-copy checks, and the real
+   prompt behavior is exercised by live verification. The in-product `planted`
+   mode is this same idea aimed at the models.
 5. **docs** - update README / CLAUDE.md / docstrings in the same change.
 6. **100% coverage & green CI** - offline logic keeps 100% line coverage
    (`make cov`, enforced in CI). Model-calling glue that cannot run offline is
