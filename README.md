@@ -44,31 +44,31 @@ ollama pull qwen2.5:3b
 ollama pull llama3.2:3b
 ollama pull gemma2:2b
 
-# 3. Python deps
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+# 3. Python deps (via uv — https://github.com/astral-sh/uv)
+uv venv
+uv pip install -r requirements.txt
 
 # 4. Run a proof attempt
-python run.py --problem even_plus_even --mode verify
+uv run python run.py --problem even_plus_even --mode verify
 ```
 
 ## Usage
 
 ```bash
 # List built-in problems
-python run.py --list
+uv run python run.py --list
 
 # Baseline: one model
-python run.py --problem even_plus_even --mode single
+uv run python run.py --problem even_plus_even --mode single
 
 # Prover + Critic loop (the interesting one)
-python run.py --problem even_plus_odd --mode verify --rounds 2
+uv run python run.py --problem even_plus_odd --mode verify --rounds 2
 
 # Two provers debate, a judge decides
-python run.py --problem sqrt2_irrational --mode debate
+uv run python run.py --problem sqrt2_irrational --mode debate
 
 # Self-consistency vote
-python run.py --problem even_plus_even --mode vote --samples 5
+uv run python run.py --problem even_plus_even --mode vote --samples 5
 ```
 
 Add your own problems in `problems/problems.json`. The perturbed ones (e.g.
