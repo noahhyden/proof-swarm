@@ -21,12 +21,16 @@ SEED = 42
 # at a remote or non-default instance without touching code.
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 
-# Which pulled model each role uses. All-same also works; different models make
-# `debate` and `verify` more interesting than cloning one model.
+# Which pulled model each role uses. We are deliberately using ONE model
+# (qwen2.5:3b) for every role right now, to establish a clean baseline before
+# introducing the confound of different models per role. Per-role seeds (see
+# run.py) still keep the agents from producing identical token streams.
+# To go multi-model later, just point these at other pulled models.
+_BASELINE_MODEL = "qwen2.5:3b"
 MODELS = {
-    "prover": "qwen2.5:3b",
-    "critic": "llama3.2:3b",
-    "judge": "gemma2:2b",
+    "prover": _BASELINE_MODEL,
+    "critic": _BASELINE_MODEL,
+    "judge": _BASELINE_MODEL,
 }
 
 # Per-role default sampling temperature.
