@@ -26,26 +26,39 @@ class Agent:
     model: str
     system: str
     temperature: float = 0.7
-    seed: int = SEED  # fixed by default -> reproducible runs
+    seed: int = SEED  # fixed by default -> reproducible on this machine
+    stream: bool = True  # print tokens live as the model generates them
     # Kept so you can inspect exactly what an agent has seen.
     transcript: list[dict] = field(default_factory=list)
 
     def ask(self, user_message: str, remember: bool = False) -> str:
         """Send a message, return the reply text.
 
-        If `remember` is True the exchange is appended to this agent's
-        transcript so follow-up calls keep the conversation going.
+        If `self.stream` is True the reply is printed to stdout token-by-token
+        as it is generated (real-time view). If `remember` is True the exchange
+        is appended to this agent's transcript so follow-up calls continue the
+        conversation.
         """
         messages = [{"role": "system", "content": self.system}]
         messages.extend(self.transcript)
         messages.append({"role": "user", "content": user_message})
+        options = {"temperature": self.temperature, "seed": self.seed}
 
-        response = _client.chat(
-            model=self.model,
-            messages=messages,
-            options={"temperature": self.temperature, "seed": self.seed},
-        )
-        reply = response["message"]["content"]
+        if self.stream:
+            parts: list[str] = []
+            for chunk in _client.chat(
+                model=self.model, messages=messages, options=options, stream=True
+            ):
+                piece = chunk["message"]["content"]
+                print(piece, end="", flush=True)
+                parts.append(piece)
+            print()  # final newline after the streamed reply
+            reply = "".join(parts)
+        else:
+            response = _client.chat(
+                model=self.model, messages=messages, options=options
+            )
+            reply = response["message"]["content"]
 
         if remember:
             self.transcript.append({"role": "user", "content": user_message})

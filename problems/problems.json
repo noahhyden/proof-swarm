@@ -3,19 +3,25 @@
     "statement": "The sum of any two even integers is an even integer.",
     "definitions": "An integer x is even if x = 2a for some integer a.",
     "answer": "even",
-    "note": "Classic textbook proof - almost certainly memorized. Use as a baseline."
+    "note": "Classic textbook proof - almost certainly memorized. Use as a baseline.",
+    "flawed_proof": "Let x = 2a and y = 2b be even integers. Then x + y = 2a + 2b. Factoring out the 2 gives x + y = 2(a + b) + 1. Since there is a +1, the result is one more than a multiple of 2. ANSWER: The sum of two even integers is odd.",
+    "bug": "Invents a spurious +1 when factoring: 2a + 2b = 2(a + b), not 2(a + b) + 1. The correct conclusion is even, not odd."
   },
   "even_plus_odd": {
     "statement": "The sum of an even integer and an odd integer is always odd.",
     "definitions": "x is even if x = 2a; x is odd if x = 2a + 1, for some integer a.",
     "answer": "odd",
-    "note": "Perturbed variant. Less commonly recited verbatim, so it leans more on reasoning."
+    "note": "Perturbed variant. Less commonly recited verbatim, so it leans more on reasoning.",
+    "flawed_proof": "Let e = 2a be even and o = 2b + 1 be odd. Then e + o = 2a + 2b + 1. We can factor this as e + o = 2(a + b + 1). Since this is 2 times a whole number, it is even. ANSWER: The sum of an even and an odd integer is even.",
+    "bug": "Wrongly factors 2a + 2b + 1 as 2(a + b + 1); that expands to 2a + 2b + 2, not 2a + 2b + 1. The trailing +1 cannot be absorbed into the factor of 2, so the result is odd."
   },
   "product_of_odds": {
     "statement": "The product of any two odd integers is odd.",
     "definitions": "x is odd if x = 2a + 1 for some integer a.",
     "answer": "odd",
-    "note": "Requires expanding (2a+1)(2b+1) and refactoring - a real derivation step."
+    "note": "Requires expanding (2a+1)(2b+1) and refactoring - a real derivation step.",
+    "flawed_proof": "Let x = 2a + 1 and y = 2b + 1 be odd. Then x * y = (2a + 1)(2b + 1) = 4ab + 2a + 2b + 1. Group everything under a factor of 2: x * y = 2(2ab + a + b + 1). This is 2 times a whole number, so it is even. ANSWER: The product of two odd integers is even.",
+    "bug": "Absorbs the trailing +1 into the factor of 2: 2(2ab + a + b + 1) expands to 4ab + 2a + 2b + 2, which is one too many. Correctly it is 2(2ab + a + b) + 1, which is odd."
   },
   "sqrt2_irrational": {
     "statement": "The square root of 2 cannot be written as a fraction of two integers.",

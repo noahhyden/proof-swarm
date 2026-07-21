@@ -4,11 +4,13 @@ Run:  uv run pytest -q
   or: uv run python tests/test_logic.py
 """
 
+import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.orchestrator import _caught_bug
 from src.scoring import extract_answer, score
 
 
@@ -37,6 +39,23 @@ def test_score_all_tokens_required():
     bad = score("ANSWER: it is n", "n 1 2")
     assert good["correct"] is True
     assert bad["correct"] is False
+
+
+def test_caught_bug_detects_verdict():
+    assert _caught_bug("VERDICT: NEEDS WORK - step 3 is wrong") is True
+    assert _caught_bug("Looks good. VERDICT: CORRECT") is False
+
+
+def test_planted_problems_are_well_formed():
+    # Any problem that offers a planted bug must carry both a flawed proof and
+    # a description of the bug, or planted mode has nothing to score.
+    problems = json.loads((Path(__file__).resolve().parent.parent
+                           / "problems" / "problems.json").read_text())
+    planted = {k: p for k, p in problems.items() if "flawed_proof" in p}
+    assert planted, "expected at least one planted-bug problem"
+    for key, p in planted.items():
+        assert p.get("flawed_proof"), f"{key} missing flawed_proof text"
+        assert p.get("bug"), f"{key} missing bug description"
 
 
 if __name__ == "__main__":

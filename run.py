@@ -2,7 +2,8 @@
 """proof-swarm CLI.
 
 Run several small local models as different roles and make them derive (and
-check) simple proofs.
+check) simple proofs. Output streams live by default, so you watch each model
+reason in real time; pass --no-stream to buffer instead.
 
 Examples:
     uv run python run.py --list
@@ -10,6 +11,7 @@ Examples:
     uv run python run.py --problem even_plus_odd  --mode verify --rounds 2
     uv run python run.py --problem sqrt2_irrational --mode debate
     uv run python run.py --problem even_plus_even --mode vote --samples 5
+    uv run python run.py --problem even_plus_odd  --mode planted --samples 5
 """
 
 from __future__ import annotations
@@ -35,11 +37,29 @@ def load_problems() -> dict:
     return json.loads(PROBLEMS_PATH.read_text())
 
 
-def save_run(problem_key: str, problem: dict, args, result: str, elapsed: float):
-    """Write a run to runs/; return (path, scored_dict_or_None)."""
+def build_scored(problem: dict, result) -> dict | None:
+    """Turn a run's result into a comparable score record.
+
+    Two shapes: `planted` returns a dict of catch-rate metrics; every other
+    mode returns proof text scored against the problem's ground-truth answer.
+    """
+    if isinstance(result, dict):  # planted mode
+        return {
+            "metric": "catch_rate",
+            "catch_rate": result["catch_rate"],
+            "caught": result["caught"],
+            "samples": result["samples"],
+            "correct": result["catch_rate"] >= 0.5,
+        }
+    if "answer" in problem:
+        return score(result, problem["answer"])
+    return None
+
+
+def save_run(problem_key: str, problem: dict, args, result, scored, elapsed: float) -> Path:
+    """Write a run to runs/ so experiments are comparable and reproducible."""
     RUNS_DIR.mkdir(exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-    scored = score(result, problem["answer"]) if "answer" in problem else None
     path = RUNS_DIR / f"{stamp}_{problem_key}_{args.mode}.json"
     path.write_text(
         json.dumps(
@@ -60,15 +80,17 @@ def save_run(problem_key: str, problem: dict, args, result: str, elapsed: float)
             indent=2,
         )
     )
-    return path, scored
+    return path
 
 
-def build_agents():
-    m, t = config.MODELS, config.TEMPERATURES
-    prover = Agent("Prover", m["prover"], orch.PROVER_SYSTEM, temperature=t["prover"])
-    critic = Agent("Critic", m["critic"], orch.CRITIC_SYSTEM, temperature=t["critic"])
-    prover_b = Agent("Prover-B", m["critic"], orch.PROVER_SYSTEM, temperature=t["prover_b"])
-    judge = Agent("Judge", m["judge"], orch.JUDGE_SYSTEM, temperature=t["judge"])
+def build_agents(stream: bool = True):
+    m, t, s = config.MODELS, config.TEMPERATURES, config.SEED
+    # Each role gets its own seed so same-model agents don't produce identical
+    # token streams; the whole set is still reproducible from config.SEED.
+    prover = Agent("Prover", m["prover"], orch.PROVER_SYSTEM, t["prover"], seed=s, stream=stream)
+    critic = Agent("Critic", m["critic"], orch.CRITIC_SYSTEM, t["critic"], seed=s + 1, stream=stream)
+    prover_b = Agent("Prover-B", m["critic"], orch.PROVER_SYSTEM, t["prover_b"], seed=s + 2, stream=stream)
+    judge = Agent("Judge", m["judge"], orch.JUDGE_SYSTEM, t["judge"], seed=s + 3, stream=stream)
     return prover, critic, prover_b, judge
 
 
@@ -92,11 +114,12 @@ def main() -> None:
     ap.add_argument("--problem", help="problem key (see --list)")
     ap.add_argument(
         "--mode",
-        choices=["single", "verify", "debate", "vote"],
+        choices=["single", "verify", "debate", "vote", "planted"],
         default="verify",
     )
     ap.add_argument("--rounds", type=int, default=2, help="verify: revision rounds")
-    ap.add_argument("--samples", type=int, default=5, help="vote: number of samples")
+    ap.add_argument("--samples", type=int, default=5, help="vote/planted: samples")
+    ap.add_argument("--no-stream", action="store_true", help="buffer output instead of streaming live")
     ap.add_argument("--list", action="store_true", help="list problems and exit")
     args = ap.parse_args()
 
@@ -105,18 +128,24 @@ def main() -> None:
     if args.list or not args.problem:
         print("Available problems:\n")
         for key, p in problems.items():
-            print(f"  {key}\n    {p['statement']}\n    ({p['note']})\n")
+            tags = " [planted]" if "flawed_proof" in p else ""
+            print(f"  {key}{tags}\n    {p['statement']}\n    ({p['note']})\n")
         return
 
     if args.problem not in problems:
         sys.exit(f"Unknown problem '{args.problem}'. Use --list to see options.")
 
-    check_models_present()
     problem = problems[args.problem]
-    prover, critic, prover_b, judge = build_agents()
+    if args.mode == "planted" and "flawed_proof" not in problem:
+        haves = [k for k, p in problems.items() if "flawed_proof" in p]
+        sys.exit(f"'{args.problem}' has no planted bug. Try one of: {', '.join(haves)}")
+
+    check_models_present()
+    stream = not args.no_stream
+    prover, critic, prover_b, judge = build_agents(stream=stream)
 
     print(f"=== {args.problem} | mode={args.mode} ===")
-    print(f"Statement: {problem['statement']}\n")
+    print(f"Statement: {problem['statement']}")
 
     start = time.monotonic()
     if args.mode == "single":
@@ -125,17 +154,28 @@ def main() -> None:
         result = orch.verify(problem, prover, [critic], rounds=args.rounds)
     elif args.mode == "debate":
         result = orch.debate(problem, prover, prover_b, judge)
-    else:  # vote
+    elif args.mode == "vote":
         result = orch.vote(problem, prover, samples=args.samples)
+    else:  # planted
+        result = orch.planted(problem, critic, samples=args.samples)
     elapsed = time.monotonic() - start
 
-    print("\n===================== FINAL =====================\n")
-    print(result)
+    scored = build_scored(problem, result)
 
-    saved, scored = save_run(args.problem, problem, args, result, elapsed)
+    # When streaming, the full text already scrolled by; don't reprint it.
+    if not stream and isinstance(result, str):
+        print("\n===================== FINAL =====================\n")
+        print(result)
+
     if scored is not None:
-        mark = "CORRECT" if scored["correct"] else "INCORRECT"
-        print(f"\n[score: {mark}  expected '{scored['expected']}', got '{scored['got']}']")
+        if scored.get("metric") == "catch_rate":
+            print(f"\n[catch rate: {scored['caught']}/{scored['samples']} "
+                  f"({scored['catch_rate']:.0%})  -> {'CAUGHT' if scored['correct'] else 'MISSED'}]")
+        else:
+            mark = "CORRECT" if scored["correct"] else "INCORRECT"
+            print(f"\n[score: {mark}  expected '{scored['expected']}', got '{scored['got']}']")
+
+    saved = save_run(args.problem, problem, args, result, scored, elapsed)
     print(f"[saved run to {saved.relative_to(ROOT)}  ({elapsed:.0f}s)]")
 
 
