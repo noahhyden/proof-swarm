@@ -2,6 +2,32 @@
 
 Guidance for any agent (human or AI) working in this repo.
 
+## Development discipline (binding)
+
+Every change follows this pipeline, in order. Do not skip a stage; do not start
+the next unit of work until the current one has been through all of it.
+
+1. **spec** - state what the change covers, what it explicitly does not, and how
+   you will know it is correct. If you cannot state that, it is not ready.
+2. **tests-first** - write the tests before the implementation. They must fail
+   for the right reason first, then pass.
+3. **live verification** - run it end to end against real models (a real
+   `run.py` / `baseline.py` invocation), not only unit tests. "It didn't crash"
+   is not verification; assert on behavior.
+4. **mutation red-teaming** - a test suite that cannot detect an injected bug is
+   not protecting anything. Run mutation testing on the pure logic (`make
+   mutation`) and kill surviving mutants by strengthening tests. The in-product
+   `planted` mode is the same idea aimed at the models.
+5. **docs** - update README / CLAUDE.md / docstrings in the same change.
+6. **100% coverage & green CI** - offline logic keeps 100% line coverage
+   (`make cov`, enforced in CI). Model-calling glue that cannot run offline is
+   explicitly marked `# pragma: no cover` with a reason, never left silently
+   uncovered.
+7. **merge-before-next** - finish and push one cohesive unit to `main` before
+   starting the next. Small, complete, green increments over broad WIP.
+
+Commit and push to `main` regularly; skip PRs while the project is immature.
+
 ## What this project is
 
 An experiment in making several small, locally-run LLMs - each playing a
