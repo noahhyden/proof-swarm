@@ -1,0 +1,32 @@
+{
+  "even_plus_even": {
+    "statement": "The sum of any two even integers is an even integer.",
+    "definitions": "An integer x is even if x = 2a for some integer a.",
+    "note": "Classic textbook proof — almost certainly memorized. Use as a baseline."
+  },
+  "even_plus_odd": {
+    "statement": "The sum of an even integer and an odd integer is always odd.",
+    "definitions": "x is even if x = 2a; x is odd if x = 2a + 1, for some integer a.",
+    "note": "Perturbed variant. Less commonly recited verbatim, so it leans more on reasoning."
+  },
+  "product_of_odds": {
+    "statement": "The product of any two odd integers is odd.",
+    "definitions": "x is odd if x = 2a + 1 for some integer a.",
+    "note": "Requires expanding (2a+1)(2b+1) and refactoring — a real derivation step."
+  },
+  "sqrt2_irrational": {
+    "statement": "The square root of 2 cannot be written as a fraction of two integers.",
+    "definitions": "A number is rational if it equals a/b for integers a, b with b != 0 and the fraction in lowest terms.",
+    "note": "Proof by contradiction. Memorized but multi-step; good stress test for the verify loop."
+  },
+  "triangle_angle_sum": {
+    "statement": "The interior angles of any triangle add up to 180 degrees.",
+    "definitions": "Alternate interior angles formed by a line crossing two parallel lines are equal. A straight line measures 180 degrees.",
+    "note": "Geometric; harder for text-only models because it relies on a construction."
+  },
+  "sum_first_n": {
+    "statement": "For every positive integer n, 1 + 2 + ... + n = n(n+1)/2.",
+    "definitions": "Proof by induction: prove it for n = 1, then assume it for n = k and prove it for n = k + 1.",
+    "note": "Induction. Genuinely tests whether the model can carry structure, not just recall."
+  }
+}
