@@ -17,12 +17,15 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 from src import orchestrator as orch
 from src.llm import Agent, available_models
 
-PROBLEMS_PATH = Path(__file__).parent / "problems" / "problems.json"
+ROOT = Path(__file__).parent
+PROBLEMS_PATH = ROOT / "problems" / "problems.json"
+RUNS_DIR = ROOT / "runs"
 
 # Which pulled model each role uses. Change these to whatever you `ollama pull`.
 # Using different models per role makes "debate" and "verify" more interesting
@@ -34,6 +37,32 @@ JUDGE_MODEL = "gemma2:2b"
 
 def load_problems() -> dict:
     return json.loads(PROBLEMS_PATH.read_text())
+
+
+def save_run(problem_key: str, args, result: str) -> Path:
+    """Write a run to runs/ so experiments are comparable later."""
+    RUNS_DIR.mkdir(exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    path = RUNS_DIR / f"{stamp}_{problem_key}_{args.mode}.json"
+    path.write_text(
+        json.dumps(
+            {
+                "problem": problem_key,
+                "mode": args.mode,
+                "rounds": args.rounds,
+                "samples": args.samples,
+                "models": {
+                    "prover": PROVER_MODEL,
+                    "critic": CRITIC_MODEL,
+                    "judge": JUDGE_MODEL,
+                },
+                "timestamp_utc": stamp,
+                "result": result,
+            },
+            indent=2,
+        )
+    )
+    return path
 
 
 def build_agents():
@@ -101,6 +130,9 @@ def main() -> None:
 
     print("\n===================== FINAL =====================\n")
     print(result)
+
+    saved = save_run(args.problem, args, result)
+    print(f"\n[saved run to {saved.relative_to(ROOT)}]")
 
 
 if __name__ == "__main__":
